@@ -17,23 +17,73 @@ const tabs = [
   {id:"3", title: "Completed"},
 ];
 
+interface FetchProductParams {
+  status?: string
+  search: string
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState(tabs[0].id);
   const [view, setView] = useState<TypeView>(TypeView.COLUMN);
   const [openModal, setOpenModal] = useState(false)
   const [products, setProducts] = useState<Product[]>([]);
+  const[productSelected, setProductSelected] = useState<Product>({} as Product)
 
 useEffect ( ()=> {
-  getProduct()
+  getProduct({search: "", status: ""})
 }, [])
 
-  async function getProduct(){
+  async function getProduct({ search = '', status = ''} : FetchProductParams){
     try {
-      const response = await axios.get('http://localhost:3333/products')
+      const searchQuery = search.length ? `title=${search}` : ''
+      const statusQuery = search.length ? `title=${status}` : ''
+
+      const query = `?${searchQuery}&${statusQuery}`
+
+      const response = await axios.get(`http://localhost:3333/products${query}`)
 
       setProducts(response.data)
     } catch (error) {
       console.error(error)
+    }
+  }
+
+  async function handleChangeProducts(tabId: string){
+    try{
+      const findTabName = tabs.find((tab) => tab.id == tabId)
+      let title = findTabName?.title.toLocaleLowerCase()
+  
+      if(title=='all'){
+        title = ''
+      }
+  
+      await getProduct ({
+        search: "", status: title
+      })
+    }catch{
+      alert('Error when change status, try again later.')
+    }
+  }
+
+  async function handleSearchProduct(search: string) {
+    try {
+      await getProduct({ search });
+    } catch {
+      alert("Error on search product, try again.");
+    }
+  }
+
+  async function handleDeleteProduct(id: string) {
+    try {
+      await axios.delete(`http://localhost:3333/products${id}`);
+
+      alert("Product deleted successfully!");
+
+      await getProduct({ search: "", status: "" });
+      setOpenModal(false);
+    } catch (error) {
+      console.error(error);
+      alert("Error when delete product, try again later");
     }
   }
 
@@ -43,7 +93,9 @@ useEffect ( ()=> {
         <div className="w-40 md:max-w-96 md:w-full">
           <Input
           placeholder="Search for a product" 
-          starIcon={MagnifyingGlass}/>
+          starIcon={MagnifyingGlass}
+          onChange={(event) => handleSearchProduct (event.target.value)}
+          />
         </div>
         <div className="flex items-center gap-5">
           <Button starIcon={Plus}>Add Product</Button>
@@ -61,7 +113,13 @@ useEffect ( ()=> {
 
       <div className="mt-10">
         <div className="flex justify-between items-center">
-          <Tab tabs={tabs} activeId={activeTab} onChange={setActiveTab} />
+          <Tab 
+          tabs={tabs} 
+          activeId={activeTab} 
+          onChange={(id) => {
+            handleChangeProducts(id)
+            setActiveTab(id)
+          }} />
 
           <TabView view={view} onChange={setView}/>
 
@@ -75,40 +133,44 @@ useEffect ( ()=> {
             product={product}
             key={product.id}
             typeView={view} 
-            onOpenModal={() => setOpenModal(true)}/>
+            onOpenModal={() => {
+              setProductSelected(product)
+              setOpenModal(true)
+            }}/>
           ))}
         </div>
       </div>
       </main>
 
-      <Modal open={openModal} onClose={() => setOpenModal(false)}>
+      {productSelected.id && (
+        <Modal open={openModal} onClose={() => setOpenModal(false)}>
         <div className="pl-5 pr-10">
           <h2 className="text-white text-2xl"> Product Details</h2>
 
           <div className="mt-10 flex flex-col gap-1">
             <p className="text-white text-sm">
-              <span className="text-gray-primary text-sm">Name:</span> Product's name
+              <span className="text-gray-primary text-sm">Name:</span> {productSelected.title}
             </p>
             <p className="text-white text-sm">
-              <span className="text-gray-primary text-sm">Quantity:</span> 106
+              <span className="text-gray-primary text-sm">Quantity:</span> {productSelected.quantity}
             </p>
             <p className="text-white text-sm">
-              <span className="text-gray-primary text-sm">Measure unity::</span> 106
+              <span className="text-gray-primary text-sm">Measure unity::</span> {productSelected.measure}
             </p>
             <p className="text-white text-sm">
-              <span className="text-gray-primary text-sm">Purchase price:</span> 535
+              <span className="text-gray-primary text-sm">Purchase price:</span> {productSelected.purchasePrice}
             </p>
             <p className="text-white text-sm">
-              <span className="text-gray-primary text-sm">Sale Price:</span> 512
+              <span className="text-gray-primary text-sm">Sale Price:</span> {productSelected.salePrice}
             </p>
             <p className="text-white text-sm">
-              <span className="text-gray-primary text-sm">Currency: :</span> Unity
+              <span className="text-gray-primary text-sm">Currency: :</span> {productSelected.currency}
             </p>
             <p className="text-white text-sm">
-              <span className="text-gray-primary text-sm">Fornecedor: :</span> TheBignes
+              <span className="text-gray-primary text-sm">Supplier: </span> {productSelected.supplier}
             </p>
             <p className="text-white text-sm">
-              <span className="text-gray-primary text-sm">Active: :</span> Yes or No
+              <span className="text-gray-primary text-sm">Status: :</span> {productSelected.status}
             </p>
           </div>
 
@@ -117,15 +179,15 @@ useEffect ( ()=> {
           </div>
 
           <div className="mt-3">
-            <TextArea label="Description"/>
+            <TextArea label="Description" value={productSelected.description} disabled/>
           </div>
           
           <div className="mt-10 space-y-4 flex flex-col items-center">
             <Button starIcon={PencilSimple} >Edit</Button>
-            <Button starIcon={Trash} variant="error">Trash</Button>
+            <Button starIcon={Trash} variant="error" onClick={() => handleDeleteProduct (productSelected.id)}>Trash</Button>
           </div>
         </div>
-        </Modal>
+        </Modal>)}
     </div>
   );
 }

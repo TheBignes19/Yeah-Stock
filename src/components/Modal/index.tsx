@@ -13,7 +13,9 @@ export function Modal({ open, children,onClose} : ModalProps) {
         <div>
             <div 
             data-state = {state}
-            className=" data-[state=closed]:hidden fixed inset-0 bg-slate-800/50 "></div>
+            className=" data-[state=closed]:hidden fixed inset-0 bg-slate-800/50 "
+            onClick={onClose}
+            ></div>
 
             <div 
             data-state = {state}
